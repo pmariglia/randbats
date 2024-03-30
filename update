@@ -130,6 +130,7 @@ const getRoles = (species, sets) => {
       abilities: new Map(),
       items: new Map(),
       moves: new Map(),
+      fullSets: new Map(),
       ivs: {},
       evs: {},
     };
@@ -152,6 +153,10 @@ const serialize = async (data, file, factor = 1) => {
 };
 
 const increment = (gen, s, set) => {
+  set.ability = formatString(set.ability)
+  set.item = formatString(set.item)
+  var fullSet = set.item + "," + set.ability + "," + set.moves.sort().join(",")
+  s.fullSets.set(fullSet, (s.fullSets.get(fullSet) || 0) + 1)
   s.n++;
   if (set.ability) s.abilities.set(set.ability, (s.abilities.get(set.ability) || 0) + 1);
   if (set.item) s.items.set(set.item, (s.items.get(set.item) || 0) + 1);
@@ -196,6 +201,19 @@ const displayItems = (data, o, s) => {
   }
 };
 
+const formatString = (s) => {
+  return s.toLowerCase()
+      .replaceAll("-", "")
+      .replaceAll(".", "")
+      .replaceAll("\'", "")
+      .replaceAll("%", "")
+      .replaceAll("*", "")
+      .replaceAll(":", "")
+      .replaceAll("_", "")
+      .replaceAll("’", "")
+      .replaceAll(" ", "")
+};
+
 const displayStats = (letsgo, data, o, s) => {
   if (!letsgo) {
     for (const [stat, val] of Object.entries(data.evs).sort((CMP.stats))) {
@@ -215,6 +233,8 @@ const displayStats = (letsgo, data, o, s) => {
   }
 };
 
+
+
 (async () => {
   fs.rmSync('data', { recursive: true, force: true });
   fs.mkdirSync('data/js', { recursive: true });
@@ -222,6 +242,13 @@ const displayStats = (letsgo, data, o, s) => {
 
   const index = { options: {}, stats: {} };
   for (const format of Dex.formats.all()) {
+    if (!format.id.includes("randombattle")) {
+      continue
+    }
+    else {
+      console.log("Generating for: " + format.id)
+    }
+
     if (!format.team || !['singles', 'doubles'].includes(format.gameType)) continue;
     if (SKIP.some(s => format.id.includes(s)) || !format.mod.startsWith('gen')) continue;
     const start = process.hrtime.bigint();
@@ -262,6 +289,7 @@ const displayStats = (letsgo, data, o, s) => {
           items: new Map(),
           moves: roles ? undefined : getMoves(forme, doubles),
           roles,
+          fullSets: new Map(),
           ivs: {},
           evs: {},
         });
@@ -289,6 +317,8 @@ const displayStats = (letsgo, data, o, s) => {
       displayAbilities(gen, letsgo, data, o, s);
       displayItems(data, o, s);
 
+      s.fullSets = Object.fromEntries(data.fullSets)
+
       if (sets) {
         o.roles = {};
         s.roles = {};
@@ -308,6 +338,7 @@ const displayStats = (letsgo, data, o, s) => {
           o.roles[role].moves = Array.from(d.moves.keys()).map(m => dex.moves.get(m).name).sort();
           s.roles[role].moves = Object.fromEntries(Array.from(d.moves.entries())
             .map(e => [dex.moves.get(e[0]).name, round(e[1] / d.n)]).sort(CMP.entries));
+          s.roles[role].fullSets = Object.fromEntries(d.fullSets.entries());
 
           displayStats(letsgo, d, o.roles[role], s.roles[role]);
         }
@@ -319,8 +350,8 @@ const displayStats = (letsgo, data, o, s) => {
 
       displayStats(letsgo, data, o, s);
 
-      options[name] = o
-      stats[name] = s;
+      options[formatString(name)] = o
+      stats[formatString(name)] = s;
     }
 
     index.options[`${format.id}.json`] = await serialize(options, `${format.id}.json`);
