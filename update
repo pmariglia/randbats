@@ -242,7 +242,10 @@ const displayStats = (letsgo, data, o, s) => {
 
   const index = { options: {}, stats: {} };
   for (const format of Dex.formats.all()) {
-    if (!format.id.includes("randombattle")) {
+    if (![
+        "gen4randombattle", "gen5randombattle", "gen6randombattle", "gen7randombattle",
+        "gen8randombattle", "gen9randombattle"
+    ].includes(format.id)) {
       continue
     }
     else {
@@ -352,6 +355,7 @@ const displayStats = (letsgo, data, o, s) => {
 
       options[formatString(name)] = o
       stats[formatString(name)] = s;
+      stats[formatString(name)] = s["fullSets"];
     }
 
     index.options[`${format.id}.json`] = await serialize(options, `${format.id}.json`);
